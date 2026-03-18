@@ -1,0 +1,206 @@
+﻿<Window x:Class="Aplicacion_firmado.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Aplicacion_firmado"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30" />
+            <RowDefinition Height="1" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Background="#333333">
+            <Image Source="/Images/logo.png" HorizontalAlignment="Left" VerticalAlignment="Center" Width="40" Height="40" Margin="15,0,0,0" Stretch="Uniform"/>
+            <TextBlock Text="MPSigner" FontSize="22" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+
+        <Rectangle Grid.Row="1" Fill="#D0D0D0" />
+
+        <Grid Grid.Row="2" Background="#F8F9FA">
+            <Image Margin="200,55,200,54" Grid.Row="2" Source="/Images/logo.png" Stretch="Fill"/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="250" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0" Background="#EAECEE" Opacity="0.95">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="10,10,10,5">
+                        <TextBlock Text="Explorador de archivos" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <Button x:Name="BtnAbrirCarpeta" Content="Abrir Carpeta..." Padding="5" Click="BtnAbrirCarpeta_Click" Background="#D5D8DC"/>
+                    </StackPanel>
+
+                    <TreeView x:Name="TvExplorador" Grid.Row="1" Margin="10,0,10,10" SelectedItemChanged="TvExplorador_SelectedItemChanged">
+                    </TreeView>
+
+                    <ComboBox x:Name="CmbModoApp" SelectionChanged="CmbModoApp_SelectionChanged" Grid.Row="2" Margin="10" Padding="5" SelectedIndex="0" FontSize="14" FontWeight="Bold">
+                        <ComboBoxItem Content="Modo: Firmar" />
+                        <ComboBoxItem Content="Modo: Verificar" />
+                        <ComboBoxItem Content="Generar Claves" />
+                        <ComboBoxItem Content="Generar Certificados" />
+                    </ComboBox>
+                </Grid>
+
+                <Grid Grid.Column="1" Margin="30">
+
+                    <Grid x:Name="PanelFirma" Visibility="Visible">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Opciones de firmado" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30"/>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="6*"/>
+                                <ColumnDefinition Width="4*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                                <Grid Margin="0,0,0,20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Nombre del archivo:" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TxtNombreArchivo" Grid.Column="1" Text="(Ningún archivo seleccionado)" FontWeight="Bold" Foreground="Gray" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Background="Transparent"/>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Procesador:" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CmbProcesador" SelectionChanged="CmbProcesador_SelectionChanged" Grid.Column="1" SelectedIndex="-1" Padding="5">
+                                        <ComboBoxItem Content="Renesas Rx72N" />
+                                        <ComboBoxItem Content="Renesas Rx660" />
+                                        <ComboBoxItem Content="Renesas Rx140" />
+                                        <ComboBoxItem Content="TI TMS 320F28075" />
+                                        <ComboBoxItem Content="TI TMS320F28335" />
+                                    </ComboBox>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Algoritmo de Firmado:" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CmbAlgoritmo" Grid.Column="1" Padding="5" SelectedIndex="-1" SelectionChanged="CmbAlgoritmo_SelectionChanged">
+                                        <ComboBoxItem Content="ECDSA-192" />
+                                        <ComboBoxItem Content="ECDSA-256" />
+                                        <ComboBoxItem Content="ECDSA-384" />
+                                        <ComboBoxItem Content="EdDSA Ed25519" />
+                                    </ComboBox>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Algoritmo de HASH:" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CmbHash" Grid.Column="1" Padding="5" SelectedIndex="-1">
+                                        <ComboBoxItem Content="SHA-256" />
+                                        <ComboBoxItem Content="SHA-512" />
+                                        <ComboBoxItem Content="BLAKE2" />
+                                        <ComboBoxItem Content="BLAKE3" />
+                                    </ComboBox>
+                                </Grid>
+                            </StackPanel>
+
+                            <GroupBox Grid.Column="1" Header="Recomendaciones" FontWeight="Bold">
+                                <TextBlock x:Name="TxtRecomendacion" FontWeight="Normal" Margin="10" TextWrapping="Wrap" Foreground="#555555" 
+                                           Text="Selecciona un procesador para ver las recomendaciones de algoritmos seguros y buenas prácticas para la cadena de confianza en este hardware."/>
+                            </GroupBox>
+                        </Grid>
+
+                        <StackPanel Grid.Row="2" HorizontalAlignment="Center" Margin="0,20,0,0">
+                            <Button x:Name="BtnFirmar" Content="FIRMAR" Width="180" Height="45" FontSize="16" FontWeight="Bold" Background="#2C3E50" Foreground="White" Cursor="Hand" Click="BtnFirmar_Click"/>
+                            <TextBlock x:Name="TxtMensajeEstado" Text="Esperando archivo..." FontSize="14" HorizontalAlignment="Center" Margin="0,15,0,0" Foreground="Gray"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="PanelVerificacion" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Opciones de Verificación" FontSize="22" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Center" Margin="0,0,0,30"/>
+
+                        <Grid Grid.Row="1">
+                            <StackPanel Margin="0,0,20,0">
+                                <Grid Margin="0,0,0,20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Nombre del archivo:" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TxtNombreArchivoVerificar" Grid.Column="1" Text="(Ningún archivo seleccionado)" FontWeight="Bold" Foreground="Gray" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Algoritmo Exigido:" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CmbAlgoritmoVerificar" Grid.Column="1" Padding="5" SelectedIndex="-1" SelectionChanged="CmbAlgoritmoVerificar_SelectionChanged">
+                                        <ComboBoxItem Content="ECDSA-192" />
+                                        <ComboBoxItem Content="ECDSA-256" />
+                                        <ComboBoxItem Content="ECDSA-384" />
+                                        <ComboBoxItem Content="EdDSA Ed25519" />
+                                    </ComboBox>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,20">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Hash Exigido:" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CmbHashVerificar" Grid.Column="1" Padding="5" SelectedIndex="-1">
+                                        <ComboBoxItem Content="SHA-256" />
+                                        <ComboBoxItem Content="SHA-512" />
+                                        <ComboBoxItem Content="BLAKE2" />
+                                        <ComboBoxItem Content="BLAKE3" />
+                                    </ComboBox>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Grid.Row="2" HorizontalAlignment="Center" Margin="0,20,0,0">
+                            <Button x:Name="BtnVerificar" Content="VERIFICAR FIRMA" Width="180" Height="45" FontSize="16" FontWeight="Bold" Background="#27AE60" Foreground="White" Cursor="Hand" Click="BtnVerificar_Click"/>
+                            <TextBlock x:Name="TxtMensajeEstadoVerificar" Text="Esperando archivo..." FontSize="14" HorizontalAlignment="Center" Margin="0,15,0,0" Foreground="Gray"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="PanelClaves" Visibility="Collapsed">
+                        <TextBlock Text="Sección de Generar Claves (Próximamente)" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray"/>
+                    </Grid>
+
+                    <Grid x:Name="PanelCertificados" Visibility="Collapsed">
+                        <TextBlock Text="Sección de Generar Certificados (Próximamente)" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray"/>
+                    </Grid>
+
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
