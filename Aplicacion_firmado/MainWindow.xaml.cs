@@ -305,53 +305,38 @@ namespace Aplicacion_firmado
 
             try
             {
-                TxtMensajeEstado.Text = $"⏳ Firmando con {algoritmoElegido} y {hashElegido}...";
+                TxtMensajeEstado.Text = $"⏳ Analizando archivo y firmando con {algoritmoElegido}...";
                 TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Orange;
 
-                // 4. Leemos la clave directamente desde el archivo físico
-                string miClavePrivadaPem = System.IO.File.ReadAllText(rutaClavePem);
+                // Usamos clase ArchivoSSP para leer el archivo.
+                // Esto separa automáticamente el contenido de una posible firma antigua.
+                var archivoSsp = new ArchivoSSP(rutaArchivoActual);
 
-                // 5. Llamamos a tu código criptográfico (que de momento sigue siendo el de P-256)
-                using var signer = new FirmwareSigner(miClavePrivadaPem, algoritmoElegido, hashElegido);
-
-                byte[] datosOriginales = System.IO.File.ReadAllBytes(rutaArchivoActual);
-                byte[] firmaGenerada = signer.FirmarDatos(datosOriginales);
-
-                //Generamos metadatos
-
-                // 1. Convertimos los bytes incomprensibles de la firma a texto legible (Base64)
-                string firmaEnTexto = Convert.ToBase64String(firmaGenerada);
-
-                // 2. Creamos la estructura de datos con toda la información
-                var metadatosFirma = new
+                // Control de seguridad: Si ya tiene firma, avisamos y no permitimos refirmar
+                if (archivoSsp.TieneFirma)
                 {
-                    ArchivoOriginal = System.IO.Path.GetFileName(rutaArchivoActual),
-                    AlgoritmoHash = hashElegido,
-                    AlgoritmoFirma = algoritmoElegido,
-                    FechaFirma = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    FirmaBase64 = firmaEnTexto
-                };
-
-                // 3. Lo convertimos a texto JSON (el WriteIndented=true lo pone bonito y ordenado con saltos de línea)
-                var opcionesJson = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
-                string contenidoJson = System.Text.Json.JsonSerializer.Serialize(metadatosFirma, opcionesJson);
-
-                // 4. Lo guardamos con extensión .json (he puesto una pequeña alerta por si ya existía)
-                string rutaFirma = rutaArchivoActual + ".sig.json";
-
-                if (System.IO.File.Exists(rutaFirma))
-                {
-                    // Si ya existe, le preguntamos al usuario si quiere machacarlo
-                    var respuesta = System.Windows.MessageBox.Show("Ya existe una firma para este archivo. ¿Deseas sobrescribirla?", "Firma existente", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                    if (respuesta == MessageBoxResult.No)
-                    {
-                        TxtMensajeEstado.Text = "⚠️ Firma cancelada por el usuario.";
-                        TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Orange;
-                        return; // Cortamos sin guardar
-                    }
+                    TxtMensajeEstado.Text = "❌ El archivo ya contiene una firma 'SG '. No se puede volver a firmar.";
+                    TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Red;
+                    return;
                 }
 
-                System.IO.File.WriteAllText(rutaFirma, contenidoJson);
+                // Leemos la clave directamente desde el archivo físico
+                string miClavePrivadaPem = System.IO.File.ReadAllText(rutaClavePem);
+
+                // Creamos el objeto de firmar
+                using var signer = new FirmwareSigner(miClavePrivadaPem, algoritmoElegido, hashElegido);
+
+                // Importante: Usamos archivoSsp.ContenidoOriginal.
+                // Si el archivo es virgen, son todos los bytes. Si tuviera firma antigua (que hemos controlado arriba),
+                // serían los bytes sin esa firma.
+                byte[] datosOriginales = archivoSsp.ContenidoOriginal;
+                byte[] firmaGenerada = signer.FirmarDatos(datosOriginales);
+
+                // Convertimos los bytes incomprensibles de la firma a texto legible (Base64)
+                string firmaEnTexto = Convert.ToBase64String(firmaGenerada);
+
+                // Añadimos la firma directamente en la última línea del archivo original.
+                ArchivoSSP.IncrustarFirma(rutaArchivoActual, firmaEnTexto);
 
                 // 5. ¡Éxito!
                 TxtMensajeEstado.Text = $"✅ Archivo firmado con éxito ({algoritmoElegido} / {hashElegido})";
@@ -382,13 +367,14 @@ namespace Aplicacion_firmado
         // EVENTO: Cuando el usuario pulsa VERIFICAR FIRMA
         private void BtnVerificar_Click(object sender, RoutedEventArgs e)
         {
+            // Comprobamos que se ha seleccionado un archivo
             if (string.IsNullOrEmpty(rutaArchivoActual) || !System.IO.File.Exists(rutaArchivoActual))
             {
                 TxtMensajeEstadoVerificar.Text = "❌ Selecciona un archivo original a la izquierda.";
                 TxtMensajeEstadoVerificar.Foreground = System.Windows.Media.Brushes.Red;
                 return;
             }
-
+            // Comprobamos que haya elegido un algoritmo de firmado
             if (CmbAlgoritmoVerificar.SelectedItem == null)
             {
                 TxtMensajeEstadoVerificar.Text = "❌ Define el algoritmo exigido.";
@@ -410,23 +396,26 @@ namespace Aplicacion_firmado
                 hashExigido = ((ComboBoxItem)CmbHashVerificar.SelectedItem).Content.ToString();
             }
 
-            string rutaJson = rutaArchivoActual + ".sig.json";
-            if (!System.IO.File.Exists(rutaJson))
-            {
-                TxtMensajeEstadoVerificar.Text = "❌ No se ha encontrado el archivo .sig.json";
-                TxtMensajeEstadoVerificar.Foreground = System.Windows.Media.Brushes.Red;
-                return;
-            }
-
             try
             {
-                TxtMensajeEstadoVerificar.Text = "⏳ Comprobando firma...";
+                TxtMensajeEstadoVerificar.Text = "⏳ Leyendo archivo y comprobando firma incrustada...";
                 TxtMensajeEstadoVerificar.Foreground = System.Windows.Media.Brushes.Orange;
 
-                string contenidoJson = System.IO.File.ReadAllText(rutaJson);
-                using var documentoJson = System.Text.Json.JsonDocument.Parse(contenidoJson);
-                string firmaBase64 = documentoJson.RootElement.GetProperty("FirmaBase64").GetString();
+                // Usamos clase ArchivoSSP para "despiezar" el archivo seleccionado.
+                var archivoSsp = new ArchivoSSP(rutaArchivoActual);
+
+                // Comprobamos si el archivo tiene el formato correcto (marcador "SG ")
+                if (!archivoSsp.TieneFirma)
+                {
+                    TxtMensajeEstadoVerificar.Text = "❌ El archivo no contiene ninguna firma incrustada (falta 'SG ').";
+                    TxtMensajeEstadoVerificar.Foreground = System.Windows.Media.Brushes.Red;
+                    return;
+                }
+
+                // Extraemos la firma y el contenido limpio directamente de la clase.
+                string firmaBase64 = archivoSsp.FirmaExtraida;
                 byte[] firmaBytes = Convert.FromBase64String(firmaBase64);
+                byte[] datosOriginales = archivoSsp.ContenidoOriginal; // Este es el mensaje SIN la última línea.
 
                 string carpetaClaves = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Claves");
                 string rutaClavePem = System.IO.Path.Combine(carpetaClaves, $"{algoritmoExigido}.pem");
@@ -439,7 +428,6 @@ namespace Aplicacion_firmado
                 }
 
                 string clavePem = System.IO.File.ReadAllText(rutaClavePem);
-                byte[] datosOriginales = System.IO.File.ReadAllBytes(rutaArchivoActual);
 
                 using var verificador = new FirmwareVerifier(clavePem, algoritmoExigido, hashExigido);
                 bool esValida = verificador.VerificarFirma(datosOriginales, firmaBytes);
