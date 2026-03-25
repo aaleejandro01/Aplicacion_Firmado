@@ -37,6 +37,8 @@ namespace Aplicacion_firmado
                     GeneradorClaves.CrearClavePrivada(algoritmo, ruta);
                 }
             }
+
+            GenerarClavesPublicasSeguras();
         }
 
         // EVENTO: Cuando el usuario hace clic en "Abrir Carpeta..."
@@ -458,6 +460,64 @@ namespace Aplicacion_firmado
             {
                 TxtMensajeEstadoVerificar.Text = $"❌ Error crítico: {ex.Message}";
                 TxtMensajeEstadoVerificar.Foreground = System.Windows.Media.Brushes.Red;
+            }
+        }
+
+        // SCRIPT TEMPORAL: Extraer claves públicas para la app de verificación
+        private void GenerarClavesPublicasSeguras()
+        {
+            try
+            {
+                string carpetaClaves = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Claves");
+
+                if (!System.IO.Directory.Exists(carpetaClaves))
+                {
+                    System.Windows.MessageBox.Show("No se encuentra la carpeta Claves.");
+                    return;
+                }
+
+                // Cogemos todos los archivos .pem de la carpeta
+                string[] archivosPem = System.IO.Directory.GetFiles(carpetaClaves, "*.pem");
+
+                foreach (string rutaPrivada in archivosPem)
+                {
+                    // Evitamos procesar los que ya hayamos convertido a públicos
+                    if (rutaPrivada.EndsWith("_public.pem")) continue;
+
+                    using var reader = System.IO.File.OpenText(rutaPrivada);
+                    var pemReader = new Org.BouncyCastle.OpenSsl.PemReader(reader);
+                    var pemObject = pemReader.ReadObject();
+
+                    Org.BouncyCastle.Crypto.AsymmetricKeyParameter clavePublica = null;
+
+                    // 1. Caso ECDSA: Devuelve el par de claves completo
+                    if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keyPair)
+                    {
+                        clavePublica = keyPair.Public;
+                    }
+                    // 2. Caso Ed25519: Solo devuelve la privada, así que calculamos la pública matemáticamente al vuelo
+                    else if (pemObject is Org.BouncyCastle.Crypto.Parameters.Ed25519PrivateKeyParameters clavePrivadaEd)
+                    {
+                        clavePublica = clavePrivadaEd.GeneratePublicKey();
+                    }
+
+                    // Si hemos conseguido extraer la pública, la guardamos
+                    if (clavePublica != null)
+                    {
+                        string nombreArchivo = System.IO.Path.GetFileNameWithoutExtension(rutaPrivada);
+                        string rutaPublica = System.IO.Path.Combine(carpetaClaves, $"{nombreArchivo}_public.pem");
+
+                        using var textWriter = System.IO.File.CreateText(rutaPublica);
+                        var pemWriter = new Org.BouncyCastle.OpenSsl.PemWriter(textWriter);
+                        pemWriter.WriteObject(clavePublica);
+                    }
+                }
+
+                System.Windows.MessageBox.Show("¡Misión cumplida! Revisa tu carpeta 'Claves'. Ya tienes los archivos _public.pem listos para llevar a la otra app.", "Seguridad", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error al exportar: {ex.Message}");
             }
         }
     }

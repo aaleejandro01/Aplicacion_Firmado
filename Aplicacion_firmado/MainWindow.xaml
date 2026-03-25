@@ -130,8 +130,10 @@
                         </Grid>
 
                         <StackPanel Grid.Row="2" HorizontalAlignment="Center" Margin="0,20,0,0">
+                            <TextBlock x:Name="TxtMensajeEstado" Text="Esperando archivo..." FontSize="14" HorizontalAlignment="Center" Margin="0,15
+                                       
+                                       ,0,30" Foreground="Gray"/>
                             <Button x:Name="BtnFirmar" Content="FIRMAR" Width="180" Height="45" FontSize="16" FontWeight="Bold" Background="#2C3E50" Foreground="White" Cursor="Hand" Click="BtnFirmar_Click"/>
-                            <TextBlock x:Name="TxtMensajeEstado" Text="Esperando archivo..." FontSize="14" HorizontalAlignment="Center" Margin="0,15,0,0" Foreground="Gray"/>
                         </StackPanel>
                     </Grid>
 
@@ -142,7 +144,7 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Text="Opciones de Verificación" FontSize="22" FontWeight="Bold" Foreground="#27AE60" HorizontalAlignment="Center" Margin="0,0,0,30"/>
+                        <TextBlock Grid.Row="0" Text="Opciones de Verificación" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30"/>
 
                         <Grid Grid.Row="1">
                             <StackPanel Margin="0,0,20,0">
@@ -186,8 +188,8 @@
                         </Grid>
 
                         <StackPanel Grid.Row="2" HorizontalAlignment="Center" Margin="0,20,0,0">
-                            <Button x:Name="BtnVerificar" Content="VERIFICAR FIRMA" Width="180" Height="45" FontSize="16" FontWeight="Bold" Background="#27AE60" Foreground="White" Cursor="Hand" Click="BtnVerificar_Click"/>
-                            <TextBlock x:Name="TxtMensajeEstadoVerificar" Text="Esperando archivo..." FontSize="14" HorizontalAlignment="Center" Margin="0,15,0,0" Foreground="Gray"/>
+                            <TextBlock x:Name="TxtMensajeEstadoVerificar" Text="Esperando archivo..." FontSize="14" HorizontalAlignment="Center" Margin="0,20,0,50" Foreground="Gray"/>
+                            <Button x:Name="BtnVerificar" Content="VERIFICAR FIRMA" Width="180" Height="45" FontSize="16" FontWeight="Bold" Background="#2C3E50" Foreground="White" Cursor="Hand" Click="BtnVerificar_Click"/>
                         </StackPanel>
                     </Grid>
 
