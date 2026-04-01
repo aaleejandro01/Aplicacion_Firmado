@@ -15,7 +15,7 @@ namespace Aplicacion_firmado
         private string _algoritmoFirma;
         private string _algoritmoHash;
 
-        public FirmwareSigner(string clavePrivadaPem, string algoritmoFirma, string algoritmoHash)
+        public FirmwareSigner(string clavePrivadaPem, string algoritmoFirma, string algoritmoHash, string password)
         {
             _algoritmoFirma = algoritmoFirma;
             _algoritmoHash = algoritmoHash;
@@ -23,16 +23,32 @@ namespace Aplicacion_firmado
             // Leemos el archivo .pem y extraemos la fórmula matemática de la clave
             using (var reader = new StringReader(clavePrivadaPem))
             {
-                var pemReader = new PemReader(reader);
-                var pemObject = pemReader.ReadObject();
+                // El PasswordFinder es el que le dice al PemReader qué contraseña usar si el archivo está cifrado
+                var passwordFinder = new PasswordProvider(password);
+                var pemReader = new PemReader(reader, passwordFinder);
+
+                object pemObject = pemReader.ReadObject();
 
                 if (pemObject is AsymmetricCipherKeyPair keyPair)
+                {
                     _clavePrivada = keyPair.Private;
+                }
                 else if (pemObject is AsymmetricKeyParameter keyParam && keyParam.IsPrivate)
+                {
                     _clavePrivada = keyParam;
+                }
                 else
-                    throw new ArgumentException("El archivo no contiene una clave privada válida.");
+                {
+                    throw new ArgumentException("No se pudo descifrar la clave. Verifica que la contraseña sea correcta o que el archivo sea válido.");
+                }
             }
+        }
+        //Clase interna para que BouncyCastle gestione la contraseña durante la lectura
+        private class PasswordProvider : IPasswordFinder
+        {
+            private readonly string _password;
+            public PasswordProvider(string password) { _password = password; }
+            public char[] GetPassword() { return _password.ToCharArray(); }
         }
 
         public byte[] FirmarDatos(byte[] datosOriginales)

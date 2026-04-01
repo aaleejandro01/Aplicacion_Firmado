@@ -194,7 +194,36 @@
                     </Grid>
 
                     <Grid x:Name="PanelClaves" Visibility="Collapsed">
-                        <TextBlock Text="Sección de Generar Claves (Próximamente)" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray"/>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Generación de Claves (Root of Trust)" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,30"/>
+
+                        <StackPanel Grid.Row="1" Margin="30,0,30,0">
+                            <TextBlock Text="Esta acción sobrescribirá las claves actuales en el directorio de la aplicación. Asegúrate de tener copias de seguridad si hay hardware antiguo en circulación." 
+                                       TextWrapping="Wrap" Foreground="#D32F2F" FontWeight="SemiBold" Margin="0,0,0,20" TextAlignment="Center"/>
+
+                            <Grid Margin="0,0,0,30" HorizontalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="200"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Selecciona Algoritmo:" VerticalAlignment="Center" FontWeight="Bold"/>
+                                <ComboBox x:Name="CmbAlgoritmoGenerar" Grid.Column="1" Padding="5" SelectedIndex="0">
+                                    <ComboBoxItem Content="ECDSA-192" />
+                                    <ComboBoxItem Content="ECDSA-256" />
+                                    <ComboBoxItem Content="ECDSA-384" />
+                                    <ComboBoxItem Content="EdDSA Ed25519" />
+                                </ComboBox>
+                            </Grid>
+
+                            <Button x:Name="BtnGenerarNuevasClaves" Content="GENERAR NUEVO PAR DE CLAVES" Width="280" Height="45" FontSize="14" FontWeight="Bold" Background="#2C3E50" Foreground="White" Cursor="Hand" Click="BtnGenerarNuevasClaves_Click"/>
+
+                            <TextBlock x:Name="TxtEstadoGeneracion" Text="" FontSize="14" HorizontalAlignment="Center" Margin="0,20,0,0" Foreground="Green" FontWeight="Bold"/>
+                        </StackPanel>
                     </Grid>
 
                     <Grid x:Name="PanelCertificados" Visibility="Collapsed">

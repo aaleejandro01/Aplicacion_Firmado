@@ -14,10 +14,12 @@ namespace Aplicacion_firmado
 {
     public partial class MainWindow : Window
     {
-        // VARIABLE GLOBAL: Aquí guardaremos la ruta exacta del archivo que vamos a firmar
+        // VARIABLE GLOBAL: Aquí guardaremos la ruta exacta del archivo que vamos a firmar.
         private string rutaArchivoActual = "";
-        // VARIABLE GLOBAL: Aquí guardaremos la ruta de la carpeta actual a la que apunta el explorador de archivos
+        // VARIABLE GLOBAL: Aquí guardaremos la ruta de la carpeta actual a la que apunta el explorador de archivos.
         private string rutaCarpetaActual = "";
+        // VARIABLE GLOBAL: Hash de la contraseña maestra.
+        private const string HashPasswordMaestra = "$2a$12$PaMCh7ENGox3X2PNKLMDqOOfttkT/hFZZzOWflxJHjw7lHOIfLQg2";
         public MainWindow()
         {
             InitializeComponent();
@@ -25,20 +27,6 @@ namespace Aplicacion_firmado
             // Para generar las claves privadas
             string carpetaClaves = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Claves");
             System.IO.Directory.CreateDirectory(carpetaClaves);
-
-            string[] algoritmos = { "ECDSA-192", "ECDSA-256", "ECDSA-384", "EdDSA Ed25519" };
-
-            foreach (var algoritmo in algoritmos)
-            {
-                string ruta = System.IO.Path.Combine(carpetaClaves, $"{algoritmo}.pem");
-                // Solo las genera si el archivo no existe (si quieres forzarlo, borra la carpeta Claves en Windows)
-                if (!System.IO.File.Exists(ruta))
-                {
-                    GeneradorClaves.CrearClavePrivada(algoritmo, ruta);
-                }
-            }
-
-            GenerarClavesPublicasSeguras();
         }
 
         // EVENTO: Cuando el usuario hace clic en "Abrir Carpeta..."
@@ -261,18 +249,18 @@ namespace Aplicacion_firmado
         // EVENTO: Cuando el usuario pulsa el botón FIRMAR
         private void BtnFirmar_Click(object sender, RoutedEventArgs e)
         {
-            // 1. Comprobación: ¿Hay un archivo seleccionado?
+            // 1.1 Comprobación: ¿Hay un archivo seleccionado?
             if (string.IsNullOrEmpty(rutaArchivoActual) || !System.IO.File.Exists(rutaArchivoActual))
             {
-                TxtMensajeEstado.Text = "❌ Por favor, selecciona un archivo en el explorador primero.";
+                TxtMensajeEstado.Text = "Por favor, selecciona un archivo en el explorador primero.";
                 TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Red;
                 return;
             }
 
-            // 2. Comprobación: ¿Ha elegido el Algoritmo de firmado?
+            // 1.2 Comprobación: ¿Ha elegido el Algoritmo de firmado?
             if (CmbAlgoritmo.SelectedItem == null)
             {
-                TxtMensajeEstado.Text = "❌ Por favor, selecciona el Algoritmo de firmado.";
+                TxtMensajeEstado.Text = "Por favor, selecciona el Algoritmo de firmado.";
                 TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Red;
                 return;
             }
@@ -280,16 +268,28 @@ namespace Aplicacion_firmado
             string algoritmoElegido = ((ComboBoxItem)CmbAlgoritmo.SelectedItem).Content.ToString();
             string hashElegido = "No aplica (Ed25519)"; // Valor por defecto si es Ed25519
 
-            // 3. Comprobación del Hash (SOLO si NO es Ed25519)
+            // 1.3 Comprobación del Hash (SOLO si NO es Ed25519)
             if (algoritmoElegido != "EdDSA Ed25519")
             {
                 if (CmbHash.SelectedItem == null)
                 {
-                    TxtMensajeEstado.Text = "❌ Por favor, selecciona un Algoritmo de HASH.";
+                    TxtMensajeEstado.Text = "Por favor, selecciona un Algoritmo de HASH.";
                     TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Red;
                     return;
                 }
                 hashElegido = ((ComboBoxItem)CmbHash.SelectedItem).Content.ToString();
+            }
+
+            // 2. Pedir contraseña para firmar
+            PasswordDialog dialogo = new PasswordDialog();
+            dialogo.Owner = this;
+            if (dialogo.ShowDialog() != true) return; //Si cancela, salimos
+
+            // 3. Verificar contra el hash
+            if (!BCrypt.Net.BCrypt.Verify(dialogo.PasswordIntroducida, HashPasswordMaestra))
+            {
+                System.Windows.MessageBox.Show("Contraseña incorrecta. Acceso denegado.", "Seguridad", MessageBoxButton.OK, MessageBoxImage.Stop);
+                return;
             }
 
             // 3. Buscar la clave dinámicamente en la carpeta "Claves"
@@ -300,14 +300,14 @@ namespace Aplicacion_firmado
             // Si el archivo de la clave no existe, avisamos y cortamos
             if (!System.IO.File.Exists(rutaClavePem))
             {
-                TxtMensajeEstado.Text = $"❌ No se encuentra la clave: {algoritmoElegido}.pem en la carpeta Claves.";
+                TxtMensajeEstado.Text = $"No se encuentra la clave: {algoritmoElegido}.pem en la carpeta Claves.";
                 TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Red;
                 return;
             }
 
             try
             {
-                TxtMensajeEstado.Text = $"⏳ Analizando archivo y firmando con {algoritmoElegido}...";
+                TxtMensajeEstado.Text = $"Analizando archivo y firmando con {algoritmoElegido}...";
                 TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Orange;
 
                 // Usamos clase ArchivoSSP para leer el archivo.
@@ -317,7 +317,7 @@ namespace Aplicacion_firmado
                 // Control de seguridad: Si ya tiene firma, avisamos y no permitimos refirmar
                 if (archivoSsp.TieneFirma)
                 {
-                    TxtMensajeEstado.Text = "❌ El archivo ya contiene una firma 'SG '. No se puede volver a firmar.";
+                    TxtMensajeEstado.Text = "El archivo ya contiene una firma 'SG '. No se puede volver a firmar.";
                     TxtMensajeEstado.Foreground = System.Windows.Media.Brushes.Red;
                     return;
                 }
@@ -326,7 +326,7 @@ namespace Aplicacion_firmado
                 string miClavePrivadaPem = System.IO.File.ReadAllText(rutaClavePem);
 
                 // Creamos el objeto de firmar
-                using var signer = new FirmwareSigner(miClavePrivadaPem, algoritmoElegido, hashElegido);
+                using var signer = new FirmwareSigner(miClavePrivadaPem, algoritmoElegido, hashElegido, dialogo.PasswordIntroducida);
 
                 // Importante: Usamos archivoSsp.ContenidoOriginal.
                 // Si el archivo es virgen, son todos los bytes. Si tuviera firma antigua (que hemos controlado arriba),
@@ -463,61 +463,73 @@ namespace Aplicacion_firmado
             }
         }
 
-        // SCRIPT TEMPORAL: Extraer claves públicas para la app de verificación
-        private void GenerarClavesPublicasSeguras()
+        // EVENTO: Generacion de claves
+        private void BtnGenerarNuevasClaves_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            try
+            //Instanciamos y abrimos la ventana de la contraseña
+            PasswordDialog dialogo = new PasswordDialog();
+            dialogo.Owner = this;
+
+            //Se detiene la ejecución aquí hasta que el usuario cierre la ventana
+            bool? resultado = dialogo.ShowDialog();
+
+            if (resultado == true)
             {
-                string carpetaClaves = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Claves");
-
-                if (!System.IO.Directory.Exists(carpetaClaves))
+                //Compara la contraseña en plano introducida por el usuario, con el hash guardado
+                bool passwordCorrecta = BCrypt.Net.BCrypt.Verify(dialogo.PasswordIntroducida, HashPasswordMaestra);
+                
+                if (passwordCorrecta)
                 {
-                    System.Windows.MessageBox.Show("No se encuentra la carpeta Claves.");
-                    return;
+                    try
+                    {
+                        TxtEstadoGeneracion.Foreground = System.Windows.Media.Brushes.Orange;
+                        TxtEstadoGeneracion.Text = "Generando entropía y calculando claves...";
+
+                        string algoritmoSeleccionado = ((System.Windows.Controls.ComboBoxItem)CmbAlgoritmoGenerar.SelectedItem).Content.ToString();
+                        string carpetaClaves = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Claves");
+
+                        // La ruta EXACTA que usan tus botones de Firmar y Verificar
+                        string rutaPrivadaPrincipal = System.IO.Path.Combine(carpetaClaves, $"{algoritmoSeleccionado}.pem");
+
+                        // 1. SISTEMA DE SEGURIDAD: Si ya existe una clave vieja, no la borramos, le cambiamos el nombre a "backup"
+                        if (System.IO.File.Exists(rutaPrivadaPrincipal))
+                        {
+                            string fechaBackup = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                            string rutaBackupPrivada = System.IO.Path.Combine(carpetaClaves, $"{algoritmoSeleccionado}_backup_{fechaBackup}_privada.pem");
+                            System.IO.File.Move(rutaPrivadaPrincipal, rutaBackupPrivada);
+
+                            // Si existe la pública vieja, la backupeamos también
+                            string rutaPublicaPrincipal = rutaPrivadaPrincipal.Replace(".pem", "_publica.pem");
+                            if (System.IO.File.Exists(rutaPublicaPrincipal))
+                            {
+                                string rutaBackupPublica = System.IO.Path.Combine(carpetaClaves, $"{algoritmoSeleccionado}_backup_{fechaBackup}_publica.pem");
+                                System.IO.File.Move(rutaPublicaPrincipal, rutaBackupPublica);
+                            }
+                        }
+
+                        // 2. Generamos las nuevas claves con el nombre PRINCIPAL
+                        GeneradorClaves.CrearClavePrivada(algoritmoSeleccionado, rutaPrivadaPrincipal, dialogo.PasswordIntroducida);
+
+                        TxtEstadoGeneracion.Foreground = System.Windows.Media.Brushes.Green;
+                        TxtEstadoGeneracion.Text = $"Nuevo par {algoritmoSeleccionado} generado. Las claves anteriores se han guardado como backup.";
+                    }
+                    catch (System.Exception ex) 
+                    {
+                        TxtEstadoGeneracion.Foreground = System.Windows.Media.Brushes.Red;
+                        TxtEstadoGeneracion.Text = $"Error al generar: {ex.Message}";
+                    }
                 }
-
-                // Cogemos todos los archivos .pem de la carpeta
-                string[] archivosPem = System.IO.Directory.GetFiles(carpetaClaves, "*.pem");
-
-                foreach (string rutaPrivada in archivosPem)
-                {
-                    // Evitamos procesar los que ya hayamos convertido a públicos
-                    if (rutaPrivada.EndsWith("_public.pem")) continue;
-
-                    using var reader = System.IO.File.OpenText(rutaPrivada);
-                    var pemReader = new Org.BouncyCastle.OpenSsl.PemReader(reader);
-                    var pemObject = pemReader.ReadObject();
-
-                    Org.BouncyCastle.Crypto.AsymmetricKeyParameter clavePublica = null;
-
-                    // 1. Caso ECDSA: Devuelve el par de claves completo
-                    if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keyPair)
-                    {
-                        clavePublica = keyPair.Public;
-                    }
-                    // 2. Caso Ed25519: Solo devuelve la privada, así que calculamos la pública matemáticamente al vuelo
-                    else if (pemObject is Org.BouncyCastle.Crypto.Parameters.Ed25519PrivateKeyParameters clavePrivadaEd)
-                    {
-                        clavePublica = clavePrivadaEd.GeneratePublicKey();
-                    }
-
-                    // Si hemos conseguido extraer la pública, la guardamos
-                    if (clavePublica != null)
-                    {
-                        string nombreArchivo = System.IO.Path.GetFileNameWithoutExtension(rutaPrivada);
-                        string rutaPublica = System.IO.Path.Combine(carpetaClaves, $"{nombreArchivo}_public.pem");
-
-                        using var textWriter = System.IO.File.CreateText(rutaPublica);
-                        var pemWriter = new Org.BouncyCastle.OpenSsl.PemWriter(textWriter);
-                        pemWriter.WriteObject(clavePublica);
-                    }
+                //En caso de que la contraseña sea incorrecta
+                else
+                { 
+                    System.Windows.MessageBox.Show("Contraseña de administrador incorrecta. Operación cancelada.", "Acceso Denegado", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    TxtEstadoGeneracion.Text = "";
                 }
-
-                System.Windows.MessageBox.Show("¡Misión cumplida! Revisa tu carpeta 'Claves'. Ya tienes los archivos _public.pem listos para llevar a la otra app.", "Seguridad", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             }
-            catch (Exception ex)
+            //El usuario pulsó CANCELAR en la ventana
+            else
             {
-                System.Windows.MessageBox.Show($"Error al exportar: {ex.Message}");
+                TxtEstadoGeneracion.Text = "";
             }
         }
     }
