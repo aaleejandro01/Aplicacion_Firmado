@@ -113,6 +113,37 @@ namespace Aplicacion_firmado
 
                         //4. Muestra la ruta completa al pasar el ratón
                         TxtNombreArchivo.ToolTip = ruta;
+
+                        try
+                        {
+                            var archivo = new ArchivoSSP(ruta);
+                            if (archivo.TieneFirma)
+                            {
+                                // Buscamos y seleccionamos el algoritmo en el ComboBox
+                                foreach (ComboBoxItem item in CmbAlgoritmoVerificar.Items)
+                                {
+                                    if (item.Content.ToString() == archivo.AlgoritmoDetectado)
+                                    {
+                                        CmbAlgoritmoVerificar.SelectedItem = item;
+                                        break;
+                                    }
+                                }
+
+                                // Buscamos y seleccionamos el Hash
+                                foreach (ComboBoxItem item in CmbHashVerificar.Items)
+                                {
+                                    if (item.Content.ToString() == archivo.HashDetectado)
+                                    {
+                                        CmbHashVerificar.SelectedItem = item;
+                                        break;
+                                    }
+                                }
+
+                                TxtMensajeEstadoVerificar.Text = "Configuración de firma detectada automáticamente.";
+                                TxtMensajeEstadoVerificar.Foreground = System.Windows.Media.Brushes.Blue;
+                            }
+                        }
+                        catch { /* Ignorar si falla la lectura rápida */ }
                     }
                 }
             }
@@ -338,7 +369,7 @@ namespace Aplicacion_firmado
                 string firmaEnTexto = Convert.ToBase64String(firmaGenerada);
 
                 // Añadimos la firma directamente en la última línea del archivo original.
-                ArchivoSSP.IncrustarFirma(rutaArchivoActual, firmaEnTexto);
+                ArchivoSSP.IncrustarFirma(rutaArchivoActual, firmaEnTexto, algoritmoElegido, hashElegido);
 
                 // 5. ¡Éxito!
                 TxtMensajeEstado.Text = $"✅ Archivo firmado con éxito ({algoritmoElegido} / {hashElegido})";
