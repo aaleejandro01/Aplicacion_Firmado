@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.IO.Compression;
 
 namespace Aplicacion_firmado
 {
@@ -497,39 +498,29 @@ namespace Aplicacion_firmado
         // EVENTO: Generacion de claves
         private void BtnGenerarNuevasClaves_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            //Instanciamos y abrimos la ventana de la contraseña
             PasswordDialog dialogo = new PasswordDialog();
             dialogo.Owner = this;
 
-            //Se detiene la ejecución aquí hasta que el usuario cierre la ventana
-            bool? resultado = dialogo.ShowDialog();
-
-            if (resultado == true)
+            if (dialogo.ShowDialog() == true)
             {
-                //Compara la contraseña en plano introducida por el usuario, con el hash guardado
-                bool passwordCorrecta = BCrypt.Net.BCrypt.Verify(dialogo.PasswordIntroducida, HashPasswordMaestra);
-                
-                if (passwordCorrecta)
+                if (BCrypt.Net.BCrypt.Verify(dialogo.PasswordIntroducida, HashPasswordMaestra))
                 {
                     try
                     {
                         TxtEstadoGeneracion.Foreground = System.Windows.Media.Brushes.Orange;
-                        TxtEstadoGeneracion.Text = "Generando entropía y calculando claves...";
+                        TxtEstadoGeneracion.Text = "Calculando claves y empaquetando actualización...";
 
                         string algoritmoSeleccionado = ((System.Windows.Controls.ComboBoxItem)CmbAlgoritmoGenerar.SelectedItem).Content.ToString();
-                        string carpetaClaves = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Claves");
-
-                        // La ruta EXACTA que usan tus botones de Firmar y Verificar
+                        string carpetaClaves = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Claves");
                         string rutaPrivadaPrincipal = System.IO.Path.Combine(carpetaClaves, $"{algoritmoSeleccionado}.pem");
 
-                        // 1. SISTEMA DE SEGURIDAD: Si ya existe una clave vieja, no la borramos, le cambiamos el nombre a "backup"
+                        // 1. SISTEMA DE BACKUP DE CLAVES EXISTENTES
                         if (System.IO.File.Exists(rutaPrivadaPrincipal))
                         {
                             string fechaBackup = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                             string rutaBackupPrivada = System.IO.Path.Combine(carpetaClaves, $"{algoritmoSeleccionado}_backup_{fechaBackup}_privada.pem");
                             System.IO.File.Move(rutaPrivadaPrincipal, rutaBackupPrivada);
 
-                            // Si existe la pública vieja, la backupeamos también
                             string rutaPublicaPrincipal = rutaPrivadaPrincipal.Replace(".pem", "_publica.pem");
                             if (System.IO.File.Exists(rutaPublicaPrincipal))
                             {
@@ -538,26 +529,59 @@ namespace Aplicacion_firmado
                             }
                         }
 
-                        // 2. Generamos las nuevas claves con el nombre PRINCIPAL
+                        // 2. GENERACIÓN Y CIFRADO (Pasamos la contraseña para el AES-256)
                         GeneradorClaves.CrearClavePrivada(algoritmoSeleccionado, rutaPrivadaPrincipal, dialogo.PasswordIntroducida);
 
+                        // 3. REGISTRO EN LOGS
+                        string carpetaLogs = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
+                        System.IO.Directory.CreateDirectory(carpetaLogs);
+                        string rutaArchivoLog = System.IO.Path.Combine(carpetaLogs, $"historial_{DateTime.Now:yyyy-MM-dd}.log");
+                        string lineaLog = $"[{DateTime.Now:HH:mm:ss}] [ADMIN] GENERACIÓN DE NUEVO PAR DE CLAVES | Algoritmo: {algoritmoSeleccionado} | Estado: ÉXITO\n";
+                        System.IO.File.AppendAllText(rutaArchivoLog, lineaLog);
+
+                        // 4. CREACIÓN DEL PAQUETE DE ACTUALIZACIÓN (.ZIP)
+                        string fechaZip = DateTime.Now.ToString("yyyyMMdd");
+                        string nombreLimpioAlgoritmo = algoritmoSeleccionado.Replace(" ", "_");
+                        string carpetaUpdate = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TempUpdate");
+                        string rutaZip = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"Actualizacion_{nombreLimpioAlgoritmo}_{fechaZip}.zip");
+
+                        if (System.IO.Directory.Exists(carpetaUpdate)) System.IO.Directory.Delete(carpetaUpdate, true);
+                        System.IO.Directory.CreateDirectory(carpetaUpdate);
+
+                        // Copiamos la clave PÚBLICA al paquete
+                        string rutaPublicaNueva = rutaPrivadaPrincipal.Replace(".pem", "_publica.pem");
+                        System.IO.File.Copy(rutaPublicaNueva, System.IO.Path.Combine(carpetaUpdate, "nueva_clave.pem"));
+
+                        // Creamos el archivo de información para el Actualizador
+                        System.IO.File.WriteAllText(System.IO.Path.Combine(carpetaUpdate, "info.txt"), algoritmoSeleccionado);
+
+                        // Copiamos el ejecutable del Actualizador (Debe estar referenciado en la solución)
+                        string rutaActualizador = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ActualizadorClaves.exe");
+                        if (System.IO.File.Exists(rutaActualizador))
+                        {
+                            System.IO.File.Copy(rutaActualizador, System.IO.Path.Combine(carpetaUpdate, "ActualizadorClaves.exe"));
+                        }
+
+                        // Comprimimos y limpiamos
+                        if (System.IO.File.Exists(rutaZip)) System.IO.File.Delete(rutaZip);
+                        ZipFile.CreateFromDirectory(carpetaUpdate, rutaZip);
+                        System.IO.Directory.Delete(carpetaUpdate, true);
+
                         TxtEstadoGeneracion.Foreground = System.Windows.Media.Brushes.Green;
-                        TxtEstadoGeneracion.Text = $"Nuevo par {algoritmoSeleccionado} generado. Las claves anteriores se han guardado como backup.";
+                        TxtEstadoGeneracion.Text = $"Nuevas claves generadas. Paquete creado: {System.IO.Path.GetFileName(rutaZip)}";
                     }
-                    catch (System.Exception ex) 
+                    catch (Exception ex)
                     {
                         TxtEstadoGeneracion.Foreground = System.Windows.Media.Brushes.Red;
-                        TxtEstadoGeneracion.Text = $"Error al generar: {ex.Message}";
+                        TxtEstadoGeneracion.Text = $"Error: {ex.Message}";
                     }
                 }
-                //En caso de que la contraseña sea incorrecta
                 else
-                { 
+                {
                     System.Windows.MessageBox.Show("Contraseña de administrador incorrecta. Operación cancelada.", "Acceso Denegado", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                     TxtEstadoGeneracion.Text = "";
                 }
             }
-            //El usuario pulsó CANCELAR en la ventana
             else
             {
                 TxtEstadoGeneracion.Text = "";

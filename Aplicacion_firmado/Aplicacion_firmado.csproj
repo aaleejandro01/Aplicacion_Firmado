@@ -28,4 +28,8 @@
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ActualizadorClaves\ActualizadorClaves.csproj" />
+  </ItemGroup>
+
 </Project>

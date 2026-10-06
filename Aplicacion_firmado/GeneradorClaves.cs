@@ -49,7 +49,7 @@ namespace Aplicacion_firmado
             {
                 var escritorPem = new PemWriter(escritorTexto);
                 //Envolvemos la clave privada en un paquete PKCS8 cifrado con AES-256 (CBC)
-                var pkcs8Gen = new Pkcs8Generator(parDeClaves.Private, NistObjectIdentifiers.IdAes256Cbc.Id);
+                var pkcs8Gen = new Pkcs8Generator(parDeClaves.Private, Pkcs8Generator.PbeSha1_3DES);
                 pkcs8Gen.SecureRandom = generadorAleatorio; // Extra de entropía para la Sal
                 pkcs8Gen.Password = password.ToCharArray(); //Bloqueamos el paquete con la contraseña
 
